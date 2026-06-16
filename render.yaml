@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: qr-attendance
+    env: java
+    buildCommand: ./mvnw clean package
+    startCommand: java -jar target/*.jar

@@ -86,7 +86,7 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
-                </configuration>
+                <mainClass>com.attendance.QrAttendanceApplication</mainClass></configuration>
             </plugin>
         </plugins>
     </build>
