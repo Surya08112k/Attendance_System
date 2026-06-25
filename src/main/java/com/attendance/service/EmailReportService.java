@@ -1,13 +1,8 @@
 package com.attendance.service;
 
 import com.attendance.model.AttendanceRecord;
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -21,14 +16,11 @@ import java.util.stream.Collectors;
 @Service
 public class EmailReportService {
 
-    @Autowired private JavaMailSender mailSender;
-    @Autowired private ExcelService   excelService;
+    @Autowired private ResendEmailClient resendEmailClient;
+    @Autowired private ExcelService      excelService;
 
     @Value("${attendance.email.to}")
     private String recipientEmail;
-
-    @Value("${spring.mail.username}")
-    private String senderEmail;
 
     @Value("${attendance.email.from-name}")
     private String fromName;
@@ -38,13 +30,8 @@ public class EmailReportService {
     /** Daily report – default 6 PM every day */
     @Scheduled(cron = "${attendance.email.daily-cron}")
     public void sendDailyReport() {
-        String today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
         try {
-            List<AttendanceRecord> records = excelService.getTodayRecords(today);
-            sendReport("Daily Attendance Report – " + today,
-                       buildDailyHtml(today, records),
-                       records,
-                       "Daily_Attendance_" + today + ".xlsx");
+            sendDailyReportNow();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -53,54 +40,54 @@ public class EmailReportService {
     /** Weekly report – default every Monday 8 AM */
     @Scheduled(cron = "${attendance.email.weekly-cron}")
     public void sendWeeklyReport() {
-        LocalDate today = LocalDate.now();
-        LocalDate weekStart = today.minusDays(7);
-        String label = weekStart.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
-                + " to " + today.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
         try {
-            List<AttendanceRecord> all = excelService.getAllRecords();
-            // Filter records for the past 7 days
-            List<AttendanceRecord> weekRecords = all.stream()
-                .filter(r -> isWithinLastNDays(r.getDate(), 7))
-                .collect(Collectors.toList());
-            sendReport("Weekly Attendance Report – " + label,
-                       buildWeeklyHtml(label, weekRecords),
-                       weekRecords,
-                       "Weekly_Attendance_" + today.format(DateTimeFormatter.ofPattern("dd-MM-yyyy")) + ".xlsx");
+            sendWeeklyReportNow();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     // ─── Public API (callable manually from controller) ───────────────────────
+    // These propagate exceptions so the controller can return the real error
+    // message to the caller (e.g. an invalid Resend API key or bad sender domain).
 
     public void sendDailyReportNow() throws Exception {
-        sendDailyReport();
+        String today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+        List<AttendanceRecord> records = excelService.getTodayRecords(today);
+        sendReport("Daily Attendance Report – " + today,
+                   buildDailyHtml(today, records),
+                   records,
+                   "Daily_Attendance_" + today + ".xlsx");
     }
 
     public void sendWeeklyReportNow() throws Exception {
-        sendWeeklyReport();
+        LocalDate today = LocalDate.now();
+        LocalDate weekStart = today.minusDays(7);
+        String label = weekStart.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
+                + " to " + today.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+        List<AttendanceRecord> all = excelService.getAllRecords();
+        List<AttendanceRecord> weekRecords = all.stream()
+            .filter(r -> isWithinLastNDays(r.getDate(), 7))
+            .collect(Collectors.toList());
+        sendReport("Weekly Attendance Report – " + label,
+                   buildWeeklyHtml(label, weekRecords),
+                   weekRecords,
+                   "Weekly_Attendance_" + today.format(DateTimeFormatter.ofPattern("dd-MM-yyyy")) + ".xlsx");
     }
 
     // ─── Core send helper ─────────────────────────────────────────────────────
 
     private void sendReport(String subject, String htmlBody,
                             List<AttendanceRecord> records, String attachmentName)
-            throws MessagingException, IOException {
+            throws IOException {
 
-        MimeMessage message = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-        helper.setFrom(senderEmail, fromName);
-        helper.setTo(recipientEmail);
-        helper.setSubject(subject);
-        helper.setText(htmlBody, true);
-
-        // Attach filtered Excel sheet
+        // Get the Excel attachment bytes
         byte[] excelBytes = excelService.getExcelBytes();
-        helper.addAttachment(attachmentName, new ByteArrayResource(excelBytes));
 
-        mailSender.send(message);
+        // Send via Resend's HTTPS API (works on any host/plan, unlike SMTP)
+        resendEmailClient.sendEmail(fromName, recipientEmail, subject, htmlBody,
+                                     attachmentName, excelBytes);
+
         System.out.println("[EmailReport] Sent: " + subject + " → " + recipientEmail);
     }
 
