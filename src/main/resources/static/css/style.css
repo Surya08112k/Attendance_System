@@ -163,6 +163,35 @@ body {
     display: none;
 }
 
+/* ── Admin access gate ── */
+.admin-gate-wrap {
+    min-height: 70vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.admin-gate-card {
+    max-width: 420px;
+    width: 100%;
+    border-radius: 16px;
+}
+.admin-gate-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #eff6ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+}
+
+/* ── Edit attendance row button ── */
+.btn-edit-row {
+    padding: 2px 8px;
+    font-size: 0.78rem;
+}
+
 /* ── Responsive tweaks ── */
 @media (max-width: 576px) {
     .hero-section { padding: 50px 16px; }

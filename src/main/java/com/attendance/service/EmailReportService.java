@@ -99,7 +99,7 @@ public class EmailReportService {
         sb.append("<p style='color:#555;font-size:15px;'>Report for <strong>").append(date).append("</strong></p>");
         sb.append("<table style='width:100%;border-collapse:collapse;margin-top:12px;font-size:14px;'>");
         sb.append("<thead><tr style='background:#1a73e8;color:#fff;'>");
-        for (String h : new String[]{"#","Employee ID","Name","Department","Time","Location"}) {
+        for (String h : new String[]{"#","Employee ID","Name","Department","In Time","Out Time","Total Hours","Status","Location"}) {
             sb.append("<th style='padding:10px 12px;text-align:left;'>").append(h).append("</th>");
         }
         sb.append("</tr></thead><tbody>");
@@ -114,7 +114,10 @@ public class EmailReportService {
                   .append(td(r.getEmployeeId()))
                   .append(td(r.getEmployeeName()))
                   .append(td(r.getDepartment()))
-                  .append(td(r.getTime()))
+                  .append(td(r.getInTime() != null ? r.getInTime() : "—"))
+                  .append(td(r.getOutTime() != null && !r.getOutTime().isBlank() ? r.getOutTime() : "—"))
+                  .append(td(r.getTotalHours() != null && !r.getTotalHours().isBlank() ? r.getTotalHours() : "—"))
+                  .append(td(statusBadge(r.getStatus(), r.getLeaveReason())))
                   .append(td(locationBadge(r.getLocationStatus())))
                   .append("</tr>");
             }
@@ -187,6 +190,18 @@ public class EmailReportService {
 
     private String td(String content) {
         return "<td style='padding:9px 12px;border-bottom:1px solid #eee;'>" + content + "</td>";
+    }
+
+    private String statusBadge(String status, String reason) {
+        if (status == null || status.isBlank()) return "<span style='color:#999;'>—</span>";
+        String color = "Present".equals(status) ? "#28a745"
+            : "Work From Home".equals(status) ? "#1a73e8"
+            : "On Leave".equals(status) ? "#f59e0b"
+            : "#6c757d";
+        String label = "On Leave".equals(status) && reason != null && !reason.isBlank()
+            ? status + " (" + reason + ")" : status;
+        return "<span style='background:" + color + ";color:#fff;padding:2px 8px;border-radius:12px;font-size:12px;'>"
+             + label + "</span>";
     }
 
     private String locationBadge(String locationStatus) {

@@ -14,6 +14,8 @@ A complete Spring Boot web application for marking employee attendance by scanni
 | Duplicate Prevention | Same employee cannot mark twice on the same day |
 | Rate Limiting | 10-second cooldown between scans |
 | Admin Dashboard | KPI cards, filterable attendance table, live refresh |
+| Admin Access Gate | Dashboard hidden behind an Admin ID prompt; nav link only shows once unlocked |
+| Edit/Delete Attendance | Admins can correct a candidate's status/time/date or remove a record before sending reports |
 | Excel Download | One-click download of the attendance report |
 | QR Code Generation | Server-side ZXing generates PNG QR codes per employee |
 | Employee Directory | Card and table view with individual QR download |
@@ -33,14 +35,15 @@ qr-attendance/
         │   ├── QrAttendanceApplication.java       # Entry point
         │   ├── controller/
         │   │   ├── AttendanceController.java       # /api/attendance/*
-        │   │   └── EmployeeController.java         # /api/employees/*
+        │   │   ├── EmployeeController.java         # /api/employees/*
+        │   │   └── AdminController.java            # /api/admin/verify
         │   ├── model/
         │   │   ├── Employee.java
         │   │   ├── AttendanceRecord.java
         │   │   └── ApiResponse.java
         │   └── service/
         │       ├── EmployeeService.java            # In-memory employee list
-        │       ├── ExcelService.java               # Apache POI read/write
+        │       ├── ExcelService.java               # Apache POI read/write/update/delete
         │       └── QrCodeService.java              # ZXing QR generation
         └── resources/
             ├── application.properties
@@ -48,9 +51,11 @@ qr-attendance/
                 ├── index.html                      # Home / landing page
                 ├── css/
                 │   └── style.css
+                ├── js/
+                │   └── admin-gate.js               # Shared dashboard-nav visibility helper
                 └── pages/
                     ├── scanner.html                # QR camera scanner
-                    ├── dashboard.html              # Admin dashboard
+                    ├── dashboard.html              # Admin dashboard (gated + editable)
                     └── employees.html              # Employee directory + QR codes
 ```
 
@@ -111,7 +116,15 @@ http://localhost:8080
 | POST | `/api/attendance/mark` | Mark attendance (body: `{"employeeId":"EMP001"}`) |
 | GET | `/api/attendance/today` | Get today's attendance |
 | GET | `/api/attendance/all` | Get all attendance records |
+| PUT | `/api/attendance/update` | Update a record's status/time/date/department (admin) — body: `{"employeeId","originalDate","date","time","status","department"}` |
+| DELETE | `/api/attendance/delete?employeeId=&date=` | Delete a record (admin) |
 | GET | `/api/attendance/download` | Download Excel report |
+
+### Admin
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/admin/verify` | Verify the Admin ID entered on the dashboard gate — body: `{"id":"..."}` |
 
 ### Employees
 
@@ -164,6 +177,26 @@ The file is created automatically in the project root on first attendance markin
 
 ---
 
+## 🔐 Admin Access (Dashboard Gate)
+
+The **Dashboard** link in the navbar is hidden by default, and the dashboard page itself shows a lock screen until the correct **Admin ID** is entered.
+
+- Default Admin ID: **`ADMIN123`** (change it — see Configuration below)
+- On success, the dashboard unlocks and the Dashboard nav link appears on every page for the rest of the browser tab's session (stored in `sessionStorage`, cleared on tab close or by clicking **Lock**)
+- This is a lightweight UI gate for keeping the dashboard out of casual users' way — it is **not** a substitute for real authentication (no hashing, no rate limiting, no per-user accounts). For production use with sensitive data, replace it with Spring Security and a real user store.
+
+### Editing attendance before sending a report
+
+Every row in the dashboard table now has an **Edit** button. Clicking it opens a modal where an admin can:
+
+- Correct the **date**, **time**, or **status** (Present / Late / Half Day / On Leave / Absent)
+- Update the **department**
+- **Delete** the record entirely
+
+Changes are written directly to `attendance_records.xlsx`, so they're reflected immediately in both the **Download Report** button and the **Send Daily/Weekly Report** email actions — letting an admin fix mistakes before either goes out.
+
+---
+
 ## ⚙️ Configuration
 
 Edit `src/main/resources/application.properties`:
@@ -171,7 +204,10 @@ Edit `src/main/resources/application.properties`:
 ```properties
 server.port=8080                              # Change port if needed
 attendance.excel.path=attendance_records.xlsx # Excel file location
+admin.access.id=ADMIN123                      # Admin ID required to unlock the dashboard
 ```
+
+On Railway/Render, set `ADMIN_ACCESS_ID` as an environment variable instead of editing the file directly.
 
 ---
 

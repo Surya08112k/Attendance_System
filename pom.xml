@@ -14,7 +14,7 @@
     <groupId>com.attendance</groupId>
     <artifactId>qr-attendance</artifactId>
     <version>1.0.0</version>
-    <name>QR Attendance System</name>
+    <name>AI Infotech Attendance System</name>
     <description>QR Code based Employee Attendance System with Email Automation and Geo-Tagging</description>
 
     <properties>
