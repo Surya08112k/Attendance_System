@@ -1,0 +1,11 @@
+target/
+*.class
+*.jar
+*.war
+*.log
+attendance_records.xlsx
+employees.json
+.idea/
+*.iml
+.DS_Store
+*.env

@@ -2,5 +2,20 @@ services:
   - type: web
     name: qr-attendance
     env: java
-    buildCommand: ./mvnw clean package
+    buildCommand: ./mvnw clean package -DskipTests
     startCommand: java -jar target/*.jar
+    envVars:
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: ATTENDANCE_EMAIL_TO
+        sync: false
+      - key: ADMIN_ACCESS_ID
+        sync: false
+      - key: ATTENDANCE_EXCEL_PATH
+        value: /data/attendance_records.xlsx
+    disk:
+      name: attendance-data
+      mountPath: /data
+      sizeGB: 1

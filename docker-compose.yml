@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  qr-attendance:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - ATTENDANCE_EXCEL_PATH=/data/attendance_records.xlsx
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
+      - ATTENDANCE_EMAIL_TO=${ATTENDANCE_EMAIL_TO}
+      - ADMIN_ACCESS_ID=${ADMIN_ACCESS_ID}
+      - GEO_LAT=${GEO_LAT:-13.0827}
+      - GEO_LON=${GEO_LON:-80.2707}
+      - GEO_RADIUS=${GEO_RADIUS:-1000}
+      - GEO_ENFORCE=${GEO_ENFORCE:-true}
+    volumes:
+      - attendance_data:/data
+    restart: unless-stopped
+
+volumes:
+  attendance_data:
